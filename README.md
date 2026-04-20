@@ -9,6 +9,7 @@ Centralizar dados de múltiplas fontes, permitindo ao usuário acessar informaç
 Etapas de Entrega
 22/04 — 1ª entrega
 Definição e seleção das APIs (incluindo alternativas à Steam), planejamento da estrutura do sistema e criação inicial do banco de dados.
+
 06/05 — 2ª entrega
 Melhorias no layout e na interface do sistema, integração de novas APIs e implementação das funcionalidades principais.
 27/05 — 3ª entrega
