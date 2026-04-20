@@ -12,8 +12,10 @@ Definição e seleção das APIs (incluindo alternativas à Steam), planejamento
 
 06/05 — 2ª entrega
 Melhorias no layout e na interface do sistema, integração de novas APIs e implementação das funcionalidades principais.
+
 27/05 — 3ª entrega
 Tratamento e organização dos dados coletados, realização de testes de funcionamento e aplicação de filtros para refinamento dos resultados.
+
 Considerações
 
 O projeto segue o modelo RAD, permitindo ajustes contínuos com base em testes e feedback, garantindo evolução progressiva do sistema.
