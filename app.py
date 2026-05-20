@@ -6,7 +6,6 @@ import plotly.express as px
 import database
 import apis
 
-
 st.set_page_config(page_title="Games Dashboard", page_icon="🎮", layout="wide")
 
 st.markdown("""
