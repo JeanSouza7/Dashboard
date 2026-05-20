@@ -3,7 +3,6 @@
 import requests
 import pandas as pd
 
-
 TIMEOUT = 8
 
 def buscar_steamspy() -> pd.DataFrame:
@@ -11,7 +10,7 @@ def buscar_steamspy() -> pd.DataFrame:
         r = requests.get("https://steamspy.com/api.php?request=top100in2weeks", timeout=TIMEOUT)
         dados = r.json()
         jogos = []
-        for info in list(dados.values())[:30]:
+        for info in list(dados.values())[:250]:
             pos = info.get("positive", 0)
             neg = info.get("negative", 0)
             total = pos + neg
@@ -30,9 +29,9 @@ def buscar_steamspy() -> pd.DataFrame:
 
 
 def buscar_rawg() -> pd.DataFrame:
-    """Retorna os 20 jogos mais bem avaliados da RAWG."""
+
     try:
-        url = "https://api.rawg.io/api/games?key=3b28e31f4bf44e19a5fc47c8d1e5e2d7&ordering=-rating&page_size=20"
+        url = "https://api.rawg.io/api/games?key=3b28e31f4bf44e19a5fc47c8d1e5e2d7&ordering=-rating&page_size=250"
         r = requests.get(url, timeout=TIMEOUT)
         dados = r.json().get("results", [])
         jogos = []
@@ -52,10 +51,9 @@ def buscar_rawg() -> pd.DataFrame:
 
 
 def buscar_freetogame() -> pd.DataFrame:
-    """Retorna os 20 jogos gratuitos mais populares."""
     try:
         r = requests.get("https://www.freetogame.com/api/games?sort-by=popularity", timeout=TIMEOUT)
-        dados = r.json()[:30]
+        dados = r.json()[:250]
         jogos = []
         for j in dados:
             jogos.append({
@@ -72,9 +70,8 @@ def buscar_freetogame() -> pd.DataFrame:
 
 
 def buscar_cheapshark() -> pd.DataFrame:
-    """Retorna 20 jogos com maiores descontos no momento."""
     try:
-        url = "https://www.cheapshark.com/api/1.0/deals?sortBy=Savings&pageSize=20"
+        url = "https://www.cheapshark.com/api/1.0/deals?sortBy=Savings&pageSize=250"
         r = requests.get(url, timeout=TIMEOUT)
         dados = r.json()
         jogos = []
@@ -83,7 +80,7 @@ def buscar_cheapshark() -> pd.DataFrame:
             jogos.append({
                 "nome":      j.get("title", "?"),
                 "jogadores": 0,
-                "avaliacao": round(desconto, 1),  # usamos o % de desconto como "avaliação"
+                "avaliacao": round(desconto, 1),
                 "genero":    "Promoção",
                 "fonte":     "CheapShark"
             })

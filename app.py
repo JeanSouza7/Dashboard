@@ -8,9 +8,7 @@ import apis
 
 
 st.set_page_config(page_title="Games Dashboard", page_icon="🎮", layout="wide")
-# =========================
-# CUSTOMIZAÇÃO DE CORES
-# =========================
+
 st.markdown("""
 <style>
 
@@ -62,7 +60,7 @@ st.sidebar.markdown("---")
 st.sidebar.caption("Fontes: SteamSpy · RAWG · FreeToGame · CheapShark")
 
 df = database.ler()
-# Limpeza dos gêneros
+
 df["genero"] = (
     df["genero"]
     .fillna("N/A")
@@ -80,9 +78,6 @@ if df.empty:
 
 
 st.sidebar.header("🎯 Filtros")
-# =========================
-# FONTES
-# =========================
 
 fontes_sel = st.sidebar.multiselect(
     "📡 Fontes",
@@ -91,15 +86,7 @@ fontes_sel = st.sidebar.multiselect(
 )
 
 df = df[df["fonte"].isin(fontes_sel)]
-# =========================
-# GÊNERO
-# =========================
 
-# =========================
-# GÊNERO
-# =========================
-
-# Separar gêneros compostos
 todos_generos = set()
 
 for lista in df["genero"].dropna():
@@ -132,9 +119,6 @@ if gen_sel != "Todos":
                 regex=True
             )
         ]
-# =========================
-# AVALIAÇÃO
-# =========================
 
 fontes_com_avaliacao = ["SteamSpy", "RAWG"]
 
@@ -162,9 +146,6 @@ if mostrar_avaliacao and not df.empty:
                 (df["avaliacao"] >= nota_min)
             ]
 
-# =========================
-# JOGADORES
-# =========================
 fontes_com_jogadores = ["SteamSpy", "RAWG"]
 
 mostrar_jogadores = any(
@@ -176,7 +157,6 @@ if mostrar_jogadores and not df.empty:
 
     max_jog = int(df["jogadores"].max())
 
-    # Evita erro do slider
     if max_jog > 0:
 
         min_jog = st.sidebar.slider(
@@ -192,9 +172,6 @@ if mostrar_jogadores and not df.empty:
                 (df["jogadores"] >= min_jog)
             ]
 
-# =========================
-# ORDENAÇÃO
-# =========================
 
 ordem = st.sidebar.selectbox(
     "🔽 Ordenar por",

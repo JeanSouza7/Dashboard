@@ -6,7 +6,6 @@ ARQUIVO_DB = "jogos.db"
 
 
 def criar_banco():
-    """Cria o banco e a tabela de jogos (só executa uma vez)."""
     con = sqlite3.connect(ARQUIVO_DB)
     cur = con.cursor()
 
@@ -27,7 +26,7 @@ def criar_banco():
 
 
 def salvar(df: pd.DataFrame, fonte: str):
-    """Apaga os dados antigos da fonte e salva os novos."""
+
     con = sqlite3.connect(ARQUIVO_DB)
     cur = con.cursor()
 
@@ -44,7 +43,6 @@ def salvar(df: pd.DataFrame, fonte: str):
 
 
 def ler() -> pd.DataFrame:
-    """Lê todos os jogos salvos no banco."""
     con = sqlite3.connect(ARQUIVO_DB)
     df = pd.read_sql_query("SELECT * FROM jogos ORDER BY jogadores DESC", con)
     con.close()
