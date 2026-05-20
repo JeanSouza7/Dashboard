@@ -1,12 +1,12 @@
-
+ 
 
 import requests
 import pandas as pd
 
+
 TIMEOUT = 8
 
 def buscar_steamspy() -> pd.DataFrame:
-    """Retorna os 20 jogos mais jogados da semana no Steam."""
     try:
         r = requests.get("https://steamspy.com/api.php?request=top100in2weeks", timeout=TIMEOUT)
         dados = r.json()
