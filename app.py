@@ -16,7 +16,6 @@ def carregar_css():
         unsafe_allow_html=True
     )
 
-
 def carregar_banner():
     with open("assets/banner.html", "r", encoding="utf-8") as f:
         html = f.read()
