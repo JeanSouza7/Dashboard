@@ -1,5 +1,4 @@
-jogos.db
 __pycache__/
 *.pyc
+jogos.db
 .env
-*.log
