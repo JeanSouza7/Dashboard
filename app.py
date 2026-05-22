@@ -6,43 +6,33 @@ import plotly.express as px
 import database
 import apis
 
-st.set_page_config(page_title="Games Dashboard", page_icon="🎮", layout="wide")
+st.set_page_config(page_title="Games Analytics", page_icon="🎮", layout="wide")
+def carregar_css():
+    with open("assets/style.css", "r", encoding="utf-8") as f:
+        css = f.read()
 
-st.markdown("""
-<style>
+    st.markdown(
+        f"<style>{css}</style>",
+        unsafe_allow_html=True
+    )
 
-/* Tags do multiselect */
-.stMultiSelect [data-baseweb="tag"] {
-    background-color: #3b82f6 !important; /* azul */
-    color: white !important;
-    border-radius: 8px !important;
-}
 
-/* X do botão */
-.stMultiSelect [data-baseweb="tag"] svg {
-    fill: white !important;
-}
+def carregar_banner():
+    with open("assets/banner.html", "r", encoding="utf-8") as f:
+        html = f.read()
 
-/* Slider */
-.stSlider div[data-baseweb="slider"] div {
-    color: #3b82f6 !important;
-}
+    st.markdown(
+        html,
+        unsafe_allow_html=True
+    )
 
-/* Bolinha do slider */
-.stSlider [role="slider"] {
-    background-color: #3b82f6 !important;
-}
 
-/* Barra preenchida */
-.stSlider div[data-testid="stTickBar"] div {
-    background-color: #3b82f6 !important;
-}
+carregar_css()
+carregar_banner()
 
-</style>
-""", unsafe_allow_html=True)
 database.criar_banco()
 
-st.sidebar.title("🎮 Games Dashboard")
+st.sidebar.title("🎮 Games Analytics")
 st.sidebar.markdown("---")
 
 if st.sidebar.button("🔄 Buscar dados das APIs", use_container_width=True):
@@ -67,8 +57,7 @@ df["genero"] = (
     .str.strip()
 )
 
-st.title("🎮 Games Dashboard")
-st.caption("Dados de jogos obtidos via APIs públicas e armazenados localmente.")
+
 st.divider()
 
 if df.empty:
@@ -200,10 +189,39 @@ else:
 
 df = df.reset_index(drop=True)
 
-col1, col2, col3 = st.columns(3)
-col1.metric("🎮 Total de Jogos", len(df))
-col2.metric("👥 Máx. Jogadores", f"{df['jogadores'].max():,}")
-col3.metric("⭐ Avaliação Média", f"{df['avaliacao'].mean():.1f}%")
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.markdown(f'''
+    <div class="metric-card blue">
+        <div class="metric-title">🎮 TOTAL DE JOGOS</div>
+        <div class="metric-value">{len(df):,}</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+with col2:
+    st.markdown(f'''
+    <div class="metric-card cyan">
+        <div class="metric-title">👥 MÁX. JOGADORES</div>
+        <div class="metric-value">{df['jogadores'].max():,}</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+with col3:
+    st.markdown(f'''
+    <div class="metric-card yellow">
+        <div class="metric-title">⭐ AVALIAÇÃO MÉDIA</div>
+        <div class="metric-value">{df['avaliacao'].mean():.1f}%</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+with col4:
+    st.markdown(f'''
+    <div class="metric-card green">
+        <div class="metric-title">🏆 FONTES ATIVAS</div>
+        <div class="metric-value">{df['fonte'].nunique()}</div>
+    </div>
+    ''', unsafe_allow_html=True)
 
 st.divider()
 
@@ -216,10 +234,32 @@ with col_a:
             df_jog, x="jogadores", y="nome", orientation="h",
             title="👥 Top 10 por Jogadores",
             labels={"jogadores": "Jogadores", "nome": "Jogo"},
-            color="jogadores", color_continuous_scale="Blues"
+            color="jogadores", color_continuous_scale="purples"
         )
+        fig.update_layout(
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font_color="#e2e8f0",
+    title_font_size=22,
+    height=420,
+
+    xaxis=dict(
+        showgrid=False,
+        zeroline=False
+    ),
+
+    yaxis=dict(
+        showgrid=False,
+        zeroline=False
+    )
+)
+        
         fig.update_layout(yaxis={"categoryorder": "total ascending"}, showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(
+    fig,
+    use_container_width=True,
+    config={"displayModeBar": False}
+)
     else:
         st.info("Sem dados de jogadores para esta fonte.")
 
@@ -230,34 +270,136 @@ with col_b:
             df_av, x="avaliacao", y="nome", orientation="h",
             title="⭐ Top 10 por Avaliação (%)",
             labels={"avaliacao": "Avaliação (%)", "nome": "Jogo"},
-            color="avaliacao", color_continuous_scale="Greens"
+            color="avaliacao", color_continuous_scale="Blues"
         )
+        fig2.update_layout(
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font_color="#e2e8f0",
+    title_font_size=22,
+    height=420,
+
+    xaxis=dict(
+        showgrid=False,
+        zeroline=False
+    ),
+
+    yaxis=dict(
+        showgrid=False,
+        zeroline=False
+    )
+    
+)
+        
         fig2.update_layout(yaxis={"categoryorder": "total ascending"}, showlegend=False)
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(
+    fig2,
+    use_container_width=True,
+    config={"displayModeBar": False}
+)
     else:
         st.info("Sem dados de avaliação para esta fonte.")
 
 col_c, col_d = st.columns(2)
 
 with col_c:
+
     df_gen = df["genero"].value_counts().reset_index()
     df_gen.columns = ["genero", "quantidade"]
-    fig3 = px.pie(df_gen, names="genero", values="quantidade",
-                  title="🕹️ Distribuição por Gênero", hole=0.4)
-    st.plotly_chart(fig3, use_container_width=True)
+
+    fig3 = px.pie(
+        df_gen,
+        names="genero",
+        values="quantidade",
+        title="🕹️ Distribuição por Gênero",
+        hole=0.55
+    )
+
+    fig3.update_traces(
+        textfont_color="white",
+        marker=dict(
+            line=dict(color="#0f172a", width=2)
+        )
+    )
+
+    fig3.update_layout(
+
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+
+        font_color="white",
+
+        margin=dict(t=60, b=20, l=20, r=20),
+
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)",
+            font=dict(color="white")
+        )
+    )
+
+    st.plotly_chart(
+        fig3,
+        use_container_width=True,
+        config={"displayModeBar": False}
+    )
+
 
 with col_d:
+
     df_fonte = df["fonte"].value_counts().reset_index()
     df_fonte.columns = ["fonte", "quantidade"]
-    fig4 = px.pie(df_fonte, names="fonte", values="quantidade",
-                  title="📡 Distribuição por Fonte", hole=0.4)
-    st.plotly_chart(fig4, use_container_width=True)
+
+    fig4 = px.pie(
+        df_fonte,
+        names="fonte",
+        values="quantidade",
+        title="📡 Distribuição por Fonte",
+        hole=0.55
+    )
+
+    fig4.update_traces(
+        textfont_color="white",
+        marker=dict(
+            line=dict(color="#0f172a", width=2)
+        )
+    )
+
+    fig4.update_layout(
+
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+
+        font_color="white",
+
+        margin=dict(t=60, b=20, l=20, r=20),
+
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)",
+            font=dict(color="white")
+        )
+    )
+
+    st.plotly_chart(
+        fig4,
+        use_container_width=True,
+        config={"displayModeBar": False}
+    )
 
 st.divider()
-
+st.markdown("""
+<h2 style="
+text-align:center;
+font-family:Orbitron;
+color:#c084fc;
+letter-spacing:3px;
+margin-bottom:20px;
+">
+🎮 GAME LIBRARY
+</h2>
+""", unsafe_allow_html=True)
 st.subheader("📋 Tabela de Jogos")
 
-busca = st.text_input("🔎 Buscar pelo nome:", placeholder="Ex: Dota, Minecraft...")
+busca = st.text_input("🔎 Buscar pelo nome:", placeholder="Ex: Dota, Counter-Strike...")
 if busca:
     df = df[df["nome"].str.contains(busca, case=False, na=False)]
 
@@ -265,7 +407,41 @@ df_show = df[["nome", "jogadores", "avaliacao", "genero", "fonte"]].copy()
 df_show.columns = ["Nome", "Jogadores", "Avaliação (%)", "Gênero", "Fonte"]
 df_show.index = range(1, len(df_show) + 1)
 
-st.dataframe(df_show, use_container_width=True, height=380)
+styled_df = (
+    df_show.style
+    .set_properties(**{
+        'background-color': '#0f172a',
+        'color': 'white',
+        'border-color': '#1e293b',
+        'font-size': '14px'
+    })
+    .set_table_styles([
+        {
+            'selector': 'thead th',
+            'props': [
+                ('background', 'linear-gradient(90deg,#2563eb,#7c3aed)'),
+                ('color', 'white'),
+                ('font-size', '15px'),
+                ('font-weight', 'bold'),
+                ('text-transform', 'uppercase'),
+                ('border', 'none')
+            ]
+        },
+        {
+            'selector': 'tr:hover',
+            'props': [
+                ('background-color', '#312e81')
+            ]
+        }
+    ])
+)
+
+st.dataframe(
+    styled_df,
+    use_container_width=True,
+    height=600,
+    hide_index=True
+)
 
 csv = df_show.to_csv(index=False).encode("utf-8")
 st.download_button("⬇️ Baixar CSV", csv, "jogos.csv", "text/csv")
