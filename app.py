@@ -28,17 +28,17 @@ st.markdown("""
     🎮 GAMES ANALYTICS
   </h1>
   <p style="color:#94a3b8;font-size:1.1rem;">
-    Selecione uma página no menu lateral para começar.
+    Selecione uma página no menu para começar.
   </p>
 </div>
 """, unsafe_allow_html=True)
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.page_link("pages/1_Dashboard.py",   label="📊 Dashboard",  icon="📊")
+    st.page_link("pages/1_Dashboard.py",   label="Dashboard",  icon="📊")
 with col2:
-    st.page_link("pages/2_Biblioteca.py",  label="🎮 Biblioteca", icon="🎮")
+    st.page_link("pages/2_Biblioteca.py",  label="Biblioteca", icon="🎮")
 with col3:
-    st.page_link("pages/3_Comparar.py",    label="⚔️ Comparar",   icon="⚔️")
+    st.page_link("pages/3_Comparar.py",    label="Comparar",   icon="⚔️")
 with col4:
-    st.page_link("pages/4_Historico.py",   label="📈 Histórico",  icon="📈")
+    st.page_link("pages/4_Historico.py",   label="Histórico",  icon="📈")

@@ -4,10 +4,12 @@ import io
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import database
-from utils import sidebar_busca
+from utils import sidebar_busca, carregar_css, carregar_banner
 
 st.set_page_config(page_title="Biblioteca · Games Analytics", page_icon="🎮", layout="wide")
 sidebar_busca()
+carregar_css()
+carregar_banner()
 
 df = database.ler()
 df["genero"] = df["genero"].fillna("N/A").astype(str).str.strip()

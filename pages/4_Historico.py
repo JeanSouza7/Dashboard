@@ -4,10 +4,12 @@ import plotly.express as px
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import database
-from utils import sidebar_busca, LAYOUT_BASE
+from utils import sidebar_busca, LAYOUT_BASE, carregar_css, carregar_banner
 
 st.set_page_config(page_title="Histórico · Games Analytics", page_icon="📈", layout="wide")
 sidebar_busca()
+carregar_css()
+carregar_banner()
 
 st.subheader("📈 Histórico de buscas ao longo do tempo")
 df_hist = database.ler_historico()

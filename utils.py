@@ -4,6 +4,22 @@ import database
 import apis
 from datetime import datetime
 
+
+def carregar_css():
+    try:
+        with open("assets/style.css", "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    except FileNotFoundError:
+        pass
+
+
+def carregar_banner():
+    try:
+        with open("assets/banner.html", "r", encoding="utf-8") as f:
+            st.markdown(f.read(), unsafe_allow_html=True)
+    except FileNotFoundError:
+        pass
+
 LAYOUT_BASE = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
