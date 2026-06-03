@@ -38,6 +38,8 @@ def buscar_e_salvar():
         if not df_api.empty:
             database.salvar(df_api, fonte)
             total += len(df_api)
+    # Enriquece gêneros UMA vez, depois de todas as fontes estarem salvas
+    database.enriquecer_generos()
     return total, datetime.now().strftime("%H:%M")
 
 

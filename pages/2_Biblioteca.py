@@ -22,6 +22,40 @@ if df.empty:
 fontes_sel = st.sidebar.multiselect("📡 Fontes", df["fonte"].unique(), default=df["fonte"].unique())
 df = df[df["fonte"].isin(fontes_sel)]
 
+# Filtro gênero
+todos_generos = sorted({g.strip() for lista in df["genero"].dropna() for g in str(lista).split(",") if g.strip()})
+gen_sel = st.sidebar.selectbox("🎮 Gênero", ["Todos"] + todos_generos)
+if gen_sel != "Todos":
+    df = df[df["genero"].str.contains(rf"\b{gen_sel}\b", case=False, na=False, regex=True)]
+
+# Filtro avaliação
+fontes_av = ["SteamSpy", "RAWG", "IGDB"]
+if any(f in fontes_av for f in fontes_sel) and not df.empty:
+    max_av = int(df["avaliacao"].max())
+    if max_av > 0:
+        nota_min = st.sidebar.slider("⭐ Avaliação mínima", 0, max_av, 0)
+        if nota_min > 0:
+            df = df[(~df["fonte"].isin(fontes_av)) | (df["avaliacao"] >= nota_min)]
+
+# Filtro jogadores
+fontes_jog = ["SteamSpy", "RAWG", "IGDB"]
+if any(f in fontes_jog for f in fontes_sel) and not df.empty:
+    max_jog = int(df["jogadores"].max())
+    if max_jog > 0:
+        min_jog = st.sidebar.slider("👥 Jogadores mínimos", 0, max_jog, 0)
+        if min_jog > 0:
+            df = df[(~df["fonte"].isin(fontes_jog)) | (df["jogadores"] >= min_jog)]
+
+# Filtros avançados
+with st.sidebar.expander("🔍 Filtros avançados"):
+    if not df.empty and df["avaliacao"].max() > 0:
+        av_range = st.slider("Faixa de avaliação", 0, 100, (0, 100), key="av_range")
+        df = df[(df["avaliacao"] == 0) | (df["avaliacao"].between(av_range[0], av_range[1]))]
+    multiplas = st.checkbox("Apenas jogos em múltiplas fontes")
+    if multiplas:
+        nomes_multi = df.groupby("nome")["fonte"].nunique()
+        df = df[df["nome"].isin(nomes_multi[nomes_multi > 1].index)]
+
 ordem = st.sidebar.selectbox("🔽 Ordenar por", ["Jogadores", "Avaliação", "Nome"])
 mapa  = {"Jogadores": "jogadores", "Avaliação": "avaliacao", "Nome": "nome"}
 df    = df.sort_values(mapa[ordem], ascending=(ordem == "Nome")).reset_index(drop=True)

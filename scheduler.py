@@ -1,9 +1,3 @@
-"""
-Busca automática agendada — roda em background.
-Execute separado: python scheduler.py
-
-Requer: pip install apscheduler
-"""
 import time
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -25,7 +19,7 @@ def job_buscar():
 
 if __name__ == "__main__":
     scheduler = BackgroundScheduler()
-    # Roda imediatamente ao iniciar e depois a cada 6 horas
+    
     job_buscar()
     scheduler.add_job(job_buscar, "interval", hours=6, id="busca_jogos")
     scheduler.start()

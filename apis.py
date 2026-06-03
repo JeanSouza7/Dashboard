@@ -5,10 +5,134 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+MAPA_GENEROS = {
+    # Inglês → Português
+    "Action":             "Ação",
+    "Adventure":          "Aventura",
+    "RPG":                "RPG",
+    "Role-playing (RPG)": "RPG",
+    "Strategy":           "Estratégia",
+    "Shooter":            "Tiro",
+    "Simulation":         "Simulação",
+    "Sports":             "Esportes",
+    "Racing":             "Corrida",
+    "Fighting":           "Luta",
+    "Puzzle":             "Quebra-cabeça",
+    "Platformer":         "Plataforma",
+    "Horror":             "Terror",
+    "Survival":           "Sobrevivência",
+    "Indie":              "Indie",
+    "Casual":             "Casual",
+    "MMO":                "MMO",
+    "MMORPG":             "MMORPG",
+    "Card":               "Cartas",
+    "Board Games":        "Tabuleiro",
+    "Music":              "Música",
+    "Educational":        "Educacional",
+    "Arcade":             "Arcade",
+    "Point-and-click":    "Ponto e Clique",
+    "Visual Novel":       "Visual Novel",
+    "Hack and slash/Beat 'em up": "Hack and Slash",
+    "Real Time Strategy (RTS)":   "Estratégia em Tempo Real",
+    "Turn-based strategy (TBS)":  "Estratégia por Turnos",
+    "Tactical":           "Tático",
+    "MOBA":               "MOBA",
+    "Battle Royale":      "Battle Royale",
+}
+
+def normalizar_genero(genero: str) -> str:
+    if not genero or genero.strip() in ("", "N/A", "null", "None"):
+        return "Outros"
+    g = genero.strip()
+    return MAPA_GENEROS.get(g, g)
+
 TIMEOUT    = 8
 RAWG_KEY   = os.getenv("RAWG_KEY", "")
 IGDB_ID    = os.getenv("IGDB_CLIENT_ID", "")
 IGDB_SECRET= os.getenv("IGDB_CLIENT_SECRET", "")
+
+
+def _enriquecer_generos_igdb(df: pd.DataFrame) -> pd.DataFrame:
+    """Consulta a IGDB em lotes para preencher gêneros ausentes ('Outros') no DataFrame.
+    
+    Só é executada se IGDB_ID e IGDB_SECRET estiverem configurados.
+    Modifica a coluna 'genero' in-place e retorna o DataFrame atualizado.
+    """
+    if df.empty or not IGDB_ID or not IGDB_SECRET:
+        return df
+
+    # Linhas que precisam de gênero
+    sem_genero_mask = df["genero"].isin(["Outros", "", "N/A"]) | df["genero"].isna()
+    nomes_sem_genero = df.loc[sem_genero_mask, "nome"].dropna().unique().tolist()
+
+    if not nomes_sem_genero:
+        return df
+
+    # Obtém token
+    try:
+        r = requests.post(
+            "https://id.twitch.tv/oauth2/token",
+            params={"client_id": IGDB_ID, "client_secret": IGDB_SECRET,
+                    "grant_type": "client_credentials"},
+            timeout=TIMEOUT,
+        )
+        r.raise_for_status()
+        token = r.json().get("access_token", "")
+    except Exception as e:
+        print(f"[IGDB enriquecimento] Erro ao obter token: {e}")
+        return df
+
+    if not token:
+        return df
+
+    headers = {"Client-ID": IGDB_ID, "Authorization": f"Bearer {token}"}
+    generos_encontrados: dict[str, str] = {}
+
+    import time
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def _buscar_um(nome: str) -> tuple[str, str]:
+        nome_safe = nome.replace('"', "")
+        body = f'search "{nome_safe}"; fields name, genres.name; limit 3;'
+        try:
+            resp = requests.post(
+                "https://api.igdb.com/v4/games",
+                headers=headers,
+                data=body,
+                timeout=TIMEOUT,
+            )
+            resp.raise_for_status()
+            for jogo in resp.json():
+                if jogo.get("genres"):
+                    generos = ", ".join(
+                        MAPA_GENEROS.get(g["name"], g["name"])
+                        for g in jogo["genres"]
+                    )
+                    return nome, generos
+        except Exception:
+            pass
+        return nome, ""
+
+    # Limita a 60 simultâneos para não sobrecarregar a API
+    MAX_WORKERS = 5
+    lote_nomes = nomes_sem_genero[:60]
+
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = {executor.submit(_buscar_um, n): n for n in lote_nomes}
+        for future in as_completed(futures):
+            nome, genero = future.result()
+            if genero:
+                generos_encontrados[nome] = genero
+            time.sleep(0.05)  # pequena pausa entre callbacks
+
+    # Aplica os gêneros encontrados ao DataFrame
+    if generos_encontrados:
+        mapa_series = df["nome"].map(generos_encontrados)
+        atualizar = sem_genero_mask & mapa_series.notna()
+        df.loc[atualizar, "genero"] = mapa_series[atualizar]
+        print(f"[IGDB enriquecimento] {atualizar.sum()} gêneros preenchidos.")
+
+    return df
 
 
 def buscar_steamspy() -> pd.DataFrame:
@@ -26,11 +150,13 @@ def buscar_steamspy() -> pd.DataFrame:
                 "nome":       info.get("name", "?"),
                 "jogadores":  info.get("ccu", 0),
                 "avaliacao":  nota,
-                "genero":     info.get("genre", "N/A"),
+                "genero":     normalizar_genero(info.get("genre", "").split(",")[0].strip()),
                 "imagem_url": f"https://cdn.akamai.steamstatic.com/steam/apps/{appid}/header.jpg" if appid else "",
                 "fonte":      "SteamSpy",
             })
-        return pd.DataFrame(jogos)
+        df = pd.DataFrame(jogos)
+        # Gênero do SteamSpy é pouco confiável — enriquece via IGDB
+        return _enriquecer_generos_igdb(df)
     except Exception as e:
         print(f"Erro SteamSpy: {e}")
         return pd.DataFrame()
@@ -46,7 +172,7 @@ def buscar_rawg() -> pd.DataFrame:
         dados = r.json().get("results", [])
         jogos = []
         for j in dados:
-            genero = j["genres"][0]["name"] if j.get("genres") else "N/A"
+            genero = ", ".join(normalizar_genero(g["name"]) for g in j.get("genres", [])) or "Outros"
             jogos.append({
                 "nome":       j.get("name", "?"),
                 "jogadores":  j.get("ratings_count", 0),
@@ -55,7 +181,7 @@ def buscar_rawg() -> pd.DataFrame:
                 "imagem_url": j.get("background_image", ""),
                 "fonte":      "RAWG",
             })
-        return pd.DataFrame(jogos)
+        return _enriquecer_generos_igdb(pd.DataFrame(jogos))
     except Exception as e:
         print(f"Erro RAWG: {e}")
         return pd.DataFrame()
@@ -95,7 +221,7 @@ def buscar_igdb() -> pd.DataFrame:
         r.raise_for_status()
         jogos = []
         for j in r.json():
-            genero = j["genres"][0]["name"] if j.get("genres") else "N/A"
+            genero = ", ".join(normalizar_genero(g["name"]) for g in j.get("genres", [])) or "Outros"
             capa   = j.get("cover", {}).get("url", "")
             if capa:
                 capa = "https:" + capa.replace("t_thumb", "t_cover_big")
@@ -107,7 +233,7 @@ def buscar_igdb() -> pd.DataFrame:
                 "imagem_url": capa,
                 "fonte":      "IGDB",
             })
-        return pd.DataFrame(jogos)
+        return _enriquecer_generos_igdb(pd.DataFrame(jogos))
     except Exception as e:
         print(f"Erro IGDB: {e}")
         return pd.DataFrame()
@@ -123,11 +249,13 @@ def buscar_cheapshark() -> pd.DataFrame:
                 "nome":       j.get("title", "?"),
                 "jogadores":  0,
                 "avaliacao":  round(float(j.get("savings", 0)), 1),
-                "genero":     "Promocao",
+                "genero":     "Outros",   # sem gênero na API — será enriquecido via IGDB
                 "imagem_url": j.get("thumb", ""),
                 "fonte":      "CheapShark",
             })
-        return pd.DataFrame(jogos)
+        df = pd.DataFrame(jogos)
+        # CheapShark não fornece gênero — tenta preencher via IGDB
+        return _enriquecer_generos_igdb(df)
     except Exception as e:
         print(f"Erro CheapShark: {e}")
         return pd.DataFrame()

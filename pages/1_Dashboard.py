@@ -27,6 +27,24 @@ gen_sel = st.sidebar.selectbox("🎮 Gênero", ["Todos"] + todos_generos)
 if gen_sel != "Todos":
     df = df[df["genero"].str.contains(rf"\b{gen_sel}\b", case=False, na=False, regex=True)]
 
+# Filtro avaliação
+fontes_av = ["SteamSpy", "RAWG", "IGDB"]
+if any(f in fontes_av for f in fontes_sel) and not df.empty:
+    max_av = int(df["avaliacao"].max())
+    if max_av > 0:
+        nota_min = st.sidebar.slider("⭐ Avaliação mínima", 0, max_av, 0)
+        if nota_min > 0:
+            df = df[(~df["fonte"].isin(fontes_av)) | (df["avaliacao"] >= nota_min)]
+
+# Filtro jogadores
+fontes_jog = ["SteamSpy", "RAWG", "IGDB"]
+if any(f in fontes_jog for f in fontes_sel) and not df.empty:
+    max_jog = int(df["jogadores"].max())
+    if max_jog > 0:
+        min_jog = st.sidebar.slider("👥 Jogadores mínimos", 0, max_jog, 0)
+        if min_jog > 0:
+            df = df[(~df["fonte"].isin(fontes_jog)) | (df["jogadores"] >= min_jog)]
+
 # Métricas
 c1, c2, c3, c4 = st.columns(4)
 with c1: st.markdown(f'<div class="metric-card blue"><div class="metric-title">🎮 TOTAL</div><div class="metric-value">{len(df):,}</div></div>', unsafe_allow_html=True)
@@ -60,7 +78,13 @@ with col_b:
 
 col_c, col_d = st.columns(2)
 with col_c:
-    df_gen = df["genero"].value_counts().reset_index(); df_gen.columns = ["genero","quantidade"]
+    # Explode gêneros compostos ("Tiro, RPG" → duas linhas) antes de contar
+    df_gen = (
+        df["genero"].dropna().str.split(",").explode()
+        .str.strip().replace("", pd.NA).dropna()
+        .value_counts().reset_index()
+    )
+    df_gen.columns = ["genero", "quantidade"]
     fig3 = px.pie(df_gen, names="genero", values="quantidade", title="🕹️ Por Gênero", hole=0.55)
     fig3.update_traces(textfont_color="white", marker=dict(line=dict(color="#0f172a", width=2)))
     fig3.update_layout(**_pie)
@@ -84,7 +108,11 @@ if not df_sc.empty:
 
 col_e, col_f = st.columns(2)
 with col_e:
-    df_ga = df[df["avaliacao"]>0].groupby("genero")["avaliacao"].mean().round(1).sort_values(ascending=False).head(10).reset_index()
+    # Explode gêneros compostos antes de agrupar
+    df_exp = df[df["avaliacao"]>0].copy()
+    df_exp = df_exp.assign(genero=df_exp["genero"].str.split(",")).explode("genero")
+    df_exp["genero"] = df_exp["genero"].str.strip()
+    df_ga = df_exp.groupby("genero")["avaliacao"].mean().round(1).sort_values(ascending=False).head(10).reset_index()
     if not df_ga.empty:
         fig6 = px.bar(df_ga, x="avaliacao", y="genero", orientation="h", title="🏅 Top Gêneros por Avaliação",
                       color="avaliacao", color_continuous_scale="teal")
@@ -93,7 +121,10 @@ with col_e:
         st.plotly_chart(fig6, use_container_width=True, config={"displayModeBar": False})
 
 with col_f:
-    df_gj = df[df["jogadores"]>0].groupby("genero")["jogadores"].sum().sort_values(ascending=False).head(10).reset_index()
+    df_exp2 = df[df["jogadores"]>0].copy()
+    df_exp2 = df_exp2.assign(genero=df_exp2["genero"].str.split(",")).explode("genero")
+    df_exp2["genero"] = df_exp2["genero"].str.strip()
+    df_gj = df_exp2.groupby("genero")["jogadores"].sum().sort_values(ascending=False).head(10).reset_index()
     if not df_gj.empty:
         fig7 = px.bar(df_gj, x="jogadores", y="genero", orientation="h", title="👥 Top Gêneros por Jogadores",
                       color="jogadores", color_continuous_scale="magenta")
