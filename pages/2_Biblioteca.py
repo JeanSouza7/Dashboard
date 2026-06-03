@@ -108,19 +108,6 @@ if jogo_sel != "—":
         if row["avaliacao"] > 0:
             st.markdown(f"**Avaliação:** {row['avaliacao']:.1f}%")
             st.progress(int(row["avaliacao"]) / 100)
-
-        fav = database.is_favorito(row["nome"])
-        if fav:
-            if st.button("💔 Remover dos favoritos"):
-                database.desfavoritar(row["nome"])
-                st.rerun()
-        else:
-            if st.button("⭐ Adicionar aos favoritos"):
-                database.favoritar(row["nome"], row["fonte"], row["genero"],
-                                   row["avaliacao"], row.get("imagem_url",""))
-                st.success("Adicionado aos favoritos!")
-                st.rerun()
-
         similares = df[(df["genero"].str.contains(row["genero"].split(",")[0], na=False)) & (df["nome"] != row["nome"])].head(5)
         if not similares.empty:
             st.markdown("**Jogos similares:**")
