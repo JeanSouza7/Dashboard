@@ -38,7 +38,6 @@ MAPA_GENEROS = {
     "MOBA":               "MOBA",
     "Battle Royale":      "Battle Royale",
 }
-
 def normalizar_genero(genero: str) -> str:
     if not genero or genero.strip() in ("", "N/A", "null", "None"):
         return "Outros"
