@@ -1,4 +1,31 @@
+# Ambiente
+.env
+*.env
+
+# Banco de dados
+jogos.db
+*.db
+
+# Python
 __pycache__/
 *.pyc
-jogos.db
-.env
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+ 
