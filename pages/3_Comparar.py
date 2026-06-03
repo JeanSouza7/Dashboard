@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import database
 from utils import sidebar_busca, LAYOUT_BASE, carregar_css, carregar_banner
 
-st.set_page_config(page_title="Comparar · Games Analytics", page_icon="⚔️", layout="wide")
+st.set_page_config(page_title="Comparar · Games Analytics", page_icon="🎮", layout="wide")
 sidebar_busca()
 carregar_css()
 carregar_banner()
@@ -34,7 +34,6 @@ rb = df[df["nome"] == jogo_b].iloc[0]
 
 st.divider()
 
-# Cards lado a lado
 card_a, card_mid, card_b = st.columns([5, 1, 5])
 
 def render_card(col, row, cor):
@@ -57,7 +56,6 @@ render_card(card_b, rb, "#f472b6")
 
 st.divider()
 
-# Gráfico radar
 categorias = ["Avaliação", "Jogadores (norm.)", "Popularidade"]
 
 max_av  = df["avaliacao"].max() or 1
@@ -94,7 +92,6 @@ fig.update_layout(
 )
 st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
-# Tabela comparativa
 st.divider()
 st.subheader("📋 Tabela comparativa")
 comp = {
@@ -105,7 +102,6 @@ comp = {
 import pandas as pd
 st.dataframe(pd.DataFrame(comp), use_container_width=True, hide_index=True)
 
-# Veredito
 st.divider()
 st.subheader("🏆 Veredito")
 pontos_a = (ra["avaliacao"] / max_av) + (ra["jogadores"] / max_jog)

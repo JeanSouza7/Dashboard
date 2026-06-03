@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import database
 from utils import sidebar_busca, LAYOUT_BASE, carregar_css, carregar_banner
 
-st.set_page_config(page_title="Dashboard · Games Analytics", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Dashboard · Games Analytics", page_icon="🎮", layout="wide")
 sidebar_busca()
 carregar_css()
 carregar_banner()
@@ -18,7 +18,6 @@ if df.empty:
     st.info("👈 Clique em Buscar dados das APIs para começar.")
     st.stop()
 
-# Filtros
 fontes_sel = st.sidebar.multiselect("📡 Fontes", df["fonte"].unique(), default=df["fonte"].unique())
 df = df[df["fonte"].isin(fontes_sel)]
 
@@ -27,7 +26,6 @@ gen_sel = st.sidebar.selectbox("🎮 Gênero", ["Todos"] + todos_generos)
 if gen_sel != "Todos":
     df = df[df["genero"].str.contains(rf"\b{gen_sel}\b", case=False, na=False, regex=True)]
 
-# Filtro avaliação
 fontes_av = ["SteamSpy", "RAWG", "IGDB"]
 if any(f in fontes_av for f in fontes_sel) and not df.empty:
     max_av = int(df["avaliacao"].max())
@@ -36,7 +34,7 @@ if any(f in fontes_av for f in fontes_sel) and not df.empty:
         if nota_min > 0:
             df = df[(~df["fonte"].isin(fontes_av)) | (df["avaliacao"] >= nota_min)]
 
-# Filtro jogadores
+
 fontes_jog = ["SteamSpy", "RAWG", "IGDB"]
 if any(f in fontes_jog for f in fontes_sel) and not df.empty:
     max_jog = int(df["jogadores"].max())
@@ -45,7 +43,19 @@ if any(f in fontes_jog for f in fontes_sel) and not df.empty:
         if min_jog > 0:
             df = df[(~df["fonte"].isin(fontes_jog)) | (df["jogadores"] >= min_jog)]
 
-# Métricas
+with st.sidebar.expander("🔍 Filtros avançados"):
+    if not df.empty and df["avaliacao"].max() > 0:
+        av_range = st.slider("Faixa de avaliação", 0, 100, (0, 100), key="av_range")
+        df = df[(df["avaliacao"] == 0) | (df["avaliacao"].between(av_range[0], av_range[1]))]
+    multiplas = st.checkbox("Apenas jogos em múltiplas fontes")
+    if multiplas:
+        nomes_multi = df.groupby("nome")["fonte"].nunique()
+        df = df[df["nome"].isin(nomes_multi[nomes_multi > 1].index)]
+
+ordem = st.sidebar.selectbox("🔽 Ordenar por", ["Jogadores", "Avaliação", "Nome"])
+mapa  = {"Jogadores": "jogadores", "Avaliação": "avaliacao", "Nome": "nome"}
+df    = df.sort_values(mapa[ordem], ascending=(ordem == "Nome")).reset_index(drop=True)
+
 c1, c2, c3, c4 = st.columns(4)
 with c1: st.markdown(f'<div class="metric-card blue"><div class="metric-title">🎮 TOTAL</div><div class="metric-value">{len(df):,}</div></div>', unsafe_allow_html=True)
 with c2: st.markdown(f'<div class="metric-card cyan"><div class="metric-title">👥 MÁX. JOGADORES</div><div class="metric-value">{df["jogadores"].max():,}</div></div>', unsafe_allow_html=True)
@@ -78,13 +88,24 @@ with col_b:
 
 col_c, col_d = st.columns(2)
 with col_c:
-    # Explode gêneros compostos ("Tiro, RPG" → duas linhas) antes de contar
+
     df_gen = (
         df["genero"].dropna().str.split(",").explode()
         .str.strip().replace("", pd.NA).dropna()
         .value_counts().reset_index()
     )
     df_gen.columns = ["genero", "quantidade"]
+    total = df_gen["quantidade"].sum()
+    threshold = 0.02 
+    mask_outros = (df_gen["quantidade"] / total) < threshold
+    if mask_outros.any():
+        outros_soma = df_gen.loc[mask_outros, "quantidade"].sum()
+        df_gen = df_gen[~mask_outros]
+        if "Outros" in df_gen["genero"].values:
+            df_gen.loc[df_gen["genero"] == "Outros", "quantidade"] += outros_soma
+        else:
+            df_gen = pd.concat([df_gen, pd.DataFrame([{"genero": "Outros", "quantidade": outros_soma}])], ignore_index=True)
+    df_gen = df_gen.sort_values("quantidade", ascending=False)
     fig3 = px.pie(df_gen, names="genero", values="quantidade", title="🕹️ Por Gênero", hole=0.55)
     fig3.update_traces(textfont_color="white", marker=dict(line=dict(color="#0f172a", width=2)))
     fig3.update_layout(**_pie)
@@ -98,17 +119,39 @@ with col_d:
     st.plotly_chart(fig4, use_container_width=True, config={"displayModeBar": False})
 
 st.divider()
-df_sc = df[(df["jogadores"] > 0) & (df["avaliacao"] > 0)]
+df_sc = df[(df["jogadores"] > 0) & (df["avaliacao"] > 0)].copy()
 if not df_sc.empty:
-    fig5 = px.scatter(df_sc, x="jogadores", y="avaliacao", color="fonte", hover_name="nome",
-                      size="jogadores", size_max=30, title="🔵 Jogadores vs Avaliação",
-                      opacity=0.75)
-    fig5.update_layout(**LAYOUT_BASE, height=450)
+    import numpy as np
+    def normalizar_por_fonte(grupo):
+        mn, mx = grupo.min(), grupo.max()
+        return (grupo - mn) / (mx - mn) if mx > mn else grupo * 0
+    df_sc["_size"] = (
+        df_sc.groupby("fonte")["jogadores"]
+        .transform(normalizar_por_fonte)
+        .pipe(np.cbrt) + 0.1
+    )
+
+    fig5 = px.scatter(
+        df_sc, x="jogadores", y="avaliacao",
+        color="fonte", hover_name="nome",
+        size="_size", size_max=18,
+        hover_data={"jogadores": True, "avaliacao": True, "_size": False, "genero": True},
+        title="🔵 Jogadores vs Avaliação",
+        opacity=0.8,
+        labels={"jogadores": "Jogadores", "avaliacao": "Avaliação", "fonte": "Fonte"},
+    )
+
+    fig5.update_xaxes(type="log", title="Jogadores (escala log)")
+    fig5.update_yaxes(title="Avaliação")
+    fig5.update_traces(marker=dict(line=dict(width=0.5, color="rgba(255,255,255,0.3)")))
+    fig5.update_layout(**LAYOUT_BASE, height=470, legend=dict(
+        orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
+    ))
     st.plotly_chart(fig5, use_container_width=True, config={"displayModeBar": False})
 
 col_e, col_f = st.columns(2)
 with col_e:
-    # Explode gêneros compostos antes de agrupar
+
     df_exp = df[df["avaliacao"]>0].copy()
     df_exp = df_exp.assign(genero=df_exp["genero"].str.split(",")).explode("genero")
     df_exp["genero"] = df_exp["genero"].str.strip()

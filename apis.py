@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 MAPA_GENEROS = {
-    # Inglês → Português
     "Action":             "Ação",
     "Adventure":          "Aventura",
     "RPG":                "RPG",
@@ -53,22 +52,16 @@ IGDB_SECRET= os.getenv("IGDB_CLIENT_SECRET", "")
 
 
 def _enriquecer_generos_igdb(df: pd.DataFrame) -> pd.DataFrame:
-    """Consulta a IGDB em lotes para preencher gêneros ausentes ('Outros') no DataFrame.
-    
-    Só é executada se IGDB_ID e IGDB_SECRET estiverem configurados.
-    Modifica a coluna 'genero' in-place e retorna o DataFrame atualizado.
-    """
+
     if df.empty or not IGDB_ID or not IGDB_SECRET:
         return df
 
-    # Linhas que precisam de gênero
     sem_genero_mask = df["genero"].isin(["Outros", "", "N/A"]) | df["genero"].isna()
     nomes_sem_genero = df.loc[sem_genero_mask, "nome"].dropna().unique().tolist()
 
     if not nomes_sem_genero:
         return df
 
-    # Obtém token
     try:
         r = requests.post(
             "https://id.twitch.tv/oauth2/token",
@@ -113,7 +106,6 @@ def _enriquecer_generos_igdb(df: pd.DataFrame) -> pd.DataFrame:
             pass
         return nome, ""
 
-    # Limita a 60 simultâneos para não sobrecarregar a API
     MAX_WORKERS = 5
     lote_nomes = nomes_sem_genero[:60]
 
@@ -123,9 +115,8 @@ def _enriquecer_generos_igdb(df: pd.DataFrame) -> pd.DataFrame:
             nome, genero = future.result()
             if genero:
                 generos_encontrados[nome] = genero
-            time.sleep(0.05)  # pequena pausa entre callbacks
+            time.sleep(0.05)
 
-    # Aplica os gêneros encontrados ao DataFrame
     if generos_encontrados:
         mapa_series = df["nome"].map(generos_encontrados)
         atualizar = sem_genero_mask & mapa_series.notna()
@@ -155,7 +146,6 @@ def buscar_steamspy() -> pd.DataFrame:
                 "fonte":      "SteamSpy",
             })
         df = pd.DataFrame(jogos)
-        # Gênero do SteamSpy é pouco confiável — enriquece via IGDB
         return _enriquecer_generos_igdb(df)
     except Exception as e:
         print(f"Erro SteamSpy: {e}")
@@ -249,12 +239,11 @@ def buscar_cheapshark() -> pd.DataFrame:
                 "nome":       j.get("title", "?"),
                 "jogadores":  0,
                 "avaliacao":  round(float(j.get("savings", 0)), 1),
-                "genero":     "Outros",   # sem gênero na API — será enriquecido via IGDB
+                "genero":     "Outros",
                 "imagem_url": j.get("thumb", ""),
                 "fonte":      "CheapShark",
             })
         df = pd.DataFrame(jogos)
-        # CheapShark não fornece gênero — tenta preencher via IGDB
         return _enriquecer_generos_igdb(df)
     except Exception as e:
         print(f"Erro CheapShark: {e}")

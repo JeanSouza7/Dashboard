@@ -72,12 +72,10 @@ def salvar(df: pd.DataFrame, fonte: str):
     )
     con.commit()
     con.close()
-    # Se ainda houver jogos sem gênero no banco, tenta enriquecer via IGDB
     enriquecer_generos()
 
 
 def _buscar_genero_igdb(nome: str, token: str, client_id: str) -> str:
-    """Busca o gênero de um jogo pelo nome exato na API do IGDB."""
     import requests
     MAPA = {
         "Action": "Ação", "Adventure": "Aventura", "RPG": "RPG",
@@ -110,9 +108,6 @@ def _buscar_genero_igdb(nome: str, token: str, client_id: str) -> str:
 
 
 def enriquecer_generos():
-    """Passo 1: cruza gêneros entre fontes por nome exato.
-    Passo 2: para os que ainda ficaram como 'Outros', busca na IGDB pelo nome.
-    """
     import os
     from dotenv import load_dotenv
     load_dotenv()
@@ -120,7 +115,6 @@ def enriquecer_generos():
     con = sqlite3.connect(ARQUIVO_DB)
     cur = con.cursor()
 
-    # ── Passo 1: cruzamento entre fontes ─────────────────────────────────────
     cur.execute("""
         SELECT nome, genero, fonte FROM jogos
         WHERE genero != 'Outros' AND genero != '' AND genero IS NOT NULL
@@ -145,15 +139,13 @@ def enriquecer_generos():
     con.commit()
     print(f"Passo 1 — cruzamento: {atualizados} jogos atualizados.")
 
-    # ── Passo 2: busca na IGDB para os que ainda estão como 'Outros' ─────────
     client_id     = os.getenv("IGDB_CLIENT_ID", "")
     client_secret = os.getenv("IGDB_CLIENT_SECRET", "")
 
     if not client_id or not client_secret:
         con.close()
         return
-
-    # Obtém token
+    
     import requests, time
     try:
         r = requests.post(
@@ -169,14 +161,11 @@ def enriquecer_generos():
     if not token:
         con.close()
         return
-
-    # Busca jogos ainda sem gênero
     cur.execute("""
         SELECT DISTINCT nome FROM jogos
         WHERE genero = 'Outros' OR genero = '' OR genero IS NULL
     """)
     sem_genero = [row[0] for row in cur.fetchall()]
-    # Limita a 60 jogos por busca para não demorar demais
     sem_genero = sem_genero[:60]
     print(f"Passo 2 — buscando gênero na IGDB para {len(sem_genero)} jogos (em lote)...")
 
@@ -194,11 +183,10 @@ def enriquecer_generos():
     }
 
     igdb_atualizados = 0
-    LOTE = 10  # até 10 jogos por requisição
+    LOTE = 10 
 
     for i in range(0, len(sem_genero), LOTE):
         lote = sem_genero[i:i+LOTE]
-        # Monta query OR para buscar vários nomes de uma vez
         condicoes = " | ".join(f'name = "{n.replace(chr(34), "")}"' for n in lote)
         body = f'fields name, genres.name; where {condicoes}; limit {LOTE};'
         try:
@@ -219,7 +207,7 @@ def enriquecer_generos():
                 igdb_atualizados += cur.rowcount
         except Exception as e:
             print(f"Erro lote IGDB: {e}")
-        time.sleep(0.3)  # 1 req por lote, ~3 lotes/s — dentro do limite
+        time.sleep(0.3)
 
     con.commit()
     con.close()

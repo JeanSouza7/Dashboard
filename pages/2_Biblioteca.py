@@ -18,17 +18,18 @@ if df.empty:
     st.info("👈 Clique em Buscar dados das APIs para começar.")
     st.stop()
 
-# Filtros sidebar
 fontes_sel = st.sidebar.multiselect("📡 Fontes", df["fonte"].unique(), default=df["fonte"].unique())
 df = df[df["fonte"].isin(fontes_sel)]
 
-# Filtro gênero
 todos_generos = sorted({g.strip() for lista in df["genero"].dropna() for g in str(lista).split(",") if g.strip()})
 gen_sel = st.sidebar.selectbox("🎮 Gênero", ["Todos"] + todos_generos)
 if gen_sel != "Todos":
     df = df[df["genero"].str.contains(rf"\b{gen_sel}\b", case=False, na=False, regex=True)]
 
-# Filtro avaliação
+ordem = st.sidebar.selectbox("🔽 Ordenar por", ["Jogadores", "Avaliação", "Nome"])
+mapa  = {"Jogadores": "jogadores", "Avaliação": "avaliacao", "Nome": "nome"}
+df    = df.sort_values(mapa[ordem], ascending=(ordem == "Nome")).reset_index(drop=True)
+
 fontes_av = ["SteamSpy", "RAWG", "IGDB"]
 if any(f in fontes_av for f in fontes_sel) and not df.empty:
     max_av = int(df["avaliacao"].max())
@@ -37,7 +38,6 @@ if any(f in fontes_av for f in fontes_sel) and not df.empty:
         if nota_min > 0:
             df = df[(~df["fonte"].isin(fontes_av)) | (df["avaliacao"] >= nota_min)]
 
-# Filtro jogadores
 fontes_jog = ["SteamSpy", "RAWG", "IGDB"]
 if any(f in fontes_jog for f in fontes_sel) and not df.empty:
     max_jog = int(df["jogadores"].max())
@@ -46,19 +46,7 @@ if any(f in fontes_jog for f in fontes_sel) and not df.empty:
         if min_jog > 0:
             df = df[(~df["fonte"].isin(fontes_jog)) | (df["jogadores"] >= min_jog)]
 
-# Filtros avançados
-with st.sidebar.expander("🔍 Filtros avançados"):
-    if not df.empty and df["avaliacao"].max() > 0:
-        av_range = st.slider("Faixa de avaliação", 0, 100, (0, 100), key="av_range")
-        df = df[(df["avaliacao"] == 0) | (df["avaliacao"].between(av_range[0], av_range[1]))]
-    multiplas = st.checkbox("Apenas jogos em múltiplas fontes")
-    if multiplas:
-        nomes_multi = df.groupby("nome")["fonte"].nunique()
-        df = df[df["nome"].isin(nomes_multi[nomes_multi > 1].index)]
 
-ordem = st.sidebar.selectbox("🔽 Ordenar por", ["Jogadores", "Avaliação", "Nome"])
-mapa  = {"Jogadores": "jogadores", "Avaliação": "avaliacao", "Nome": "nome"}
-df    = df.sort_values(mapa[ordem], ascending=(ordem == "Nome")).reset_index(drop=True)
 
 st.markdown('<h2 style="text-align:center;font-family:Orbitron;color:#c084fc;letter-spacing:3px;margin-bottom:20px;">🎮 GAME LIBRARY</h2>', unsafe_allow_html=True)
 
@@ -66,7 +54,6 @@ busca = st.text_input("🔎 Buscar pelo nome:", placeholder="Ex: Dota, Counter-S
 if busca:
     df = df[df["nome"].str.contains(busca, case=False, na=False)]
 
-# Paginação
 POR_PAGINA = 50
 total_pags = max(1, (len(df) - 1) // POR_PAGINA + 1)
 _, col_p, _ = st.columns([2, 1, 2])
@@ -105,7 +92,6 @@ else:
 
 st.divider()
 
-# Detalhe + favoritar
 st.subheader("🔎 Detalhes de um jogo")
 jogo_sel = st.selectbox("Selecione:", ["—"] + df["nome"].tolist())
 if jogo_sel != "—":
@@ -141,27 +127,7 @@ if jogo_sel != "—":
             for _, r2 in similares.iterrows():
                 st.caption(f"• {r2['nome']} ({r2['fonte']})")
 
-st.divider()
 
-# Favoritos
-st.subheader("⭐ Meus Favoritos")
-df_fav = database.ler_favoritos()
-if df_fav.empty:
-    st.info("Nenhum favorito ainda. Selecione um jogo acima e clique em ⭐ Adicionar.")
-else:
-    fcols = st.columns(4)
-    for i, (_, row) in enumerate(df_fav.iterrows()):
-        with fcols[i % 4]:
-            if row.get("imagem_url"):
-                st.image(row["imagem_url"], use_container_width=True)
-            st.caption(f"**{row['nome']}**\n{row['genero']} · {row['fonte']}")
-            if st.button("🗑️", key=f"del_{row['nome']}"):
-                database.desfavoritar(row["nome"])
-                st.rerun()
-
-st.divider()
-
-# Exportar
 st.subheader("📤 Exportar dados")
 df_exp = df[["nome","jogadores","avaliacao","genero","fonte"]].copy()
 df_exp.columns = ["Nome","Jogadores","Avaliacao_pct","Genero","Fonte"]

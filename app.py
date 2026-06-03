@@ -1,44 +1,101 @@
 import streamlit as st
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+import database
 
 st.set_page_config(page_title="Games Analytics", page_icon="🎮", layout="wide")
+database.criar_banco()
 
-def carregar_css():
-    try:
-        with open("assets/style.css", "r", encoding="utf-8") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    except FileNotFoundError:
-        pass
-
-def carregar_banner():
-    try:
-        with open("assets/banner.html", "r", encoding="utf-8") as f:
-            st.markdown(f.read(), unsafe_allow_html=True)
-    except FileNotFoundError:
-        pass
-
+from utils import carregar_css, carregar_banner, sidebar_busca
+sidebar_busca()
 carregar_css()
 carregar_banner()
 
-import database
-database.criar_banco()
+df = database.ler()
+
+if not df.empty:
+    capas = (
+        df[df["imagem_url"].str.startswith("http", na=False)]
+        .drop_duplicates("nome")
+        .head(24)["imagem_url"]
+        .tolist()
+    )
+else:
+    capas = []
+
+imgs_html = "".join(f'<img src="{url}" onerror="this.style.display=\'none\'">' for url in capas)
+
+st.markdown(f"""
+<style>
+.mosaic-wrap {{
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+}}
+.mosaic-grid {{
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+    width: 100%;
+    height: 100%;
+}}
+.mosaic-grid img {{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.28;
+    filter: saturate(0.7) brightness(0.6);
+    transition: opacity 0.4s;
+}}
+.mosaic-overlay {{
+    display: none;
+}}
+/* garante que o conteúdo do streamlit fica acima */
+.block-container {{ position: relative; z-index: 2; }}
+section[data-testid="stSidebar"] {{ z-index: 10; }}
+.banner {{ position: relative; z-index: 2; }}
+.nav-card {{ backdrop-filter: blur(2px); }}
+</style>
+
+<div class="mosaic-wrap">
+  <div class="mosaic-grid">{imgs_html}</div>
+</div>
+<div class="mosaic-overlay"></div>
+""", unsafe_allow_html=True)
+
+if not capas:
+    st.info("👈 Busque dados pelas APIs para ativar o mosaico de capas.")
 
 st.markdown("""
-<div style="text-align:center;padding:3rem 0 1rem;">
-  <h1 style="font-size:2.5rem;font-family:Orbitron,sans-serif;color:#c084fc;letter-spacing:4px;">
-    🎮 GAMES ANALYTICS
-  </h1>
-  <p style="color:#94a3b8;font-size:1.1rem;">
-    Selecione uma página no menu para começar.
-  </p>
+<div class="nav-cards">
+  <div class="nav-card">
+    <div class="nav-card-icon">📊</div>
+    <div class="nav-card-title">Dashboard</div>
+    <div class="nav-card-desc">Visão geral com gráficos, rankings e métricas de todos os jogos indexados.</div>
+  </div>
+  <div class="nav-card">
+    <div class="nav-card-icon">🎮</div>
+    <div class="nav-card-title">Biblioteca</div>
+    <div class="nav-card-desc">Explore, filtre e favorite jogos. Veja capas, avaliações e gêneros.</div>
+  </div>
+  <div class="nav-card">
+    <div class="nav-card-icon">⚔️</div>
+    <div class="nav-card-title">Comparar</div>
+    <div class="nav-card-desc">Coloque jogos lado a lado e compare avaliações, popularidade e fontes.</div>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3 = st.columns(3)
 with col1:
-    st.page_link("pages/1_Dashboard.py",   label="Dashboard",  icon="📊")
+    if st.button("📊 Dashboard", use_container_width=True):
+        st.switch_page("pages/1_Dashboard.py")
 with col2:
-    st.page_link("pages/2_Biblioteca.py",  label="Biblioteca", icon="🎮")
+    if st.button("🎮 Biblioteca", use_container_width=True):
+        st.switch_page("pages/2_Biblioteca.py")
 with col3:
-    st.page_link("pages/3_Comparar.py",    label="Comparar",   icon="⚔️")
-with col4:
-    st.page_link("pages/4_Historico.py",   label="Histórico",  icon="📈")
+    if st.button("⚔️ Comparar", use_container_width=True):
+        st.switch_page("pages/3_Comparar.py")
